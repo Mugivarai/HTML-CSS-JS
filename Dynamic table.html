@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <title>Динамическая таблица</title>
+  </head>
+  <style>
+    *,
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #f5f5f5;
+    }
+
+    main {
+      display: flex;
+      flex-flow: column;
+      gap: 16px;
+      padding: 32px;
+    }
+
+    button {
+      padding: 4px 8px;
+    }
+
+    .dataset {
+      display: flex;
+      gap: 16px;
+      flex-flow: row;
+      flex-wrap: wrap;
+      width: 100%;
+      align-items: flex-end;
+    }
+
+    .dataset__predefined,
+    .dataset__form {
+      display: flex;
+      gap: 8px;
+      flex-flow: column;
+    }
+
+    .dataset__form {
+      flex-grow: 1;
+    }
+
+    .dataset__input-group {
+      display: flex;
+      gap: 8px;
+      flex-flow: row;
+    }
+
+    .dataset__input-group input {
+      flex-grow: 1;
+    }
+
+    .dynamic-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .dynamic-table th,
+    .dynamic-table td {
+      border: 1px solid #000;
+    }
+
+    .dynamic-table th {
+      padding: 8px;
+    }
+    .none {
+      display: none;
+    }
+    .dynamic-table td {
+      padding: 4px 8px;
+
+    }
+    
+    .dynamic-table tbody tr:nth-child(odd) {
+      background-color: #fff;
+    }
+
+    .dynamic-table tbody tr:hover {
+      background-color: #ccc;
+    }
+    .filter_text_button {
+      gap: 5px;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .button_filter {
+      padding: 0%;
+    }
+    .regular_buttons {
+      display: flex;
+      align-items: center;
+      justify-content: left;
+      gap: 10px;
+    }
+    .pagination {
+      height: 30px;
+      width: 200px;
+      border-radius: 10px;
+      border-style: solid;
+      border-width: 2px;
+      border-color: #e04646;
+      background-color: white;
+      padding: 5px;
+    }
+    .navigation {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #search {
+      flex-grow: 1;
+      height: 30px;
+      border-radius: 10px;
+      border-style: solid;
+      border-width: 2px;
+      border-color: #e04646;
+      background-color: white;
+      padding: 5px;
+    }
+  </style>
+  <script>
+        const small_data = 'http://www.filltext.com/?rows=32&id=%7Bnumber%7C1000%7D&firstName=%7BfirstName%7D&lastName=%7BlastName%7D&email=%7Bemail%7D&phone=%7Bphone%7C(xxx)xxx-xx-xx%7D&address=%7BaddressObject%7D&description=%7Blorem%7C32%7D';
+        const big_data = 'http://www.filltext.com/?rows=1000&id=%7Bnumber%7C1000%7D&firstName=%7BfirstName%7D&delay=3&lastName=%7BlastName%7D&email=%7Bemail%7D&phone=%7Bphone%7C(xxx)xxx-xx-xx%7D&address=%7BaddressObject%7D&description=%7Blorem%7C32%7D';
+        var hod =0;
+        var array = [];
+        var array_reserve;
+        var name_headers = [];
+        function arrayToObject(arr) {
+            return arr.reduce((acc, { key, value }) => {
+                acc[key] = value;
+                return acc;
+            }, {});
+        }
+        function objectToArray(obj) {
+            return Object.keys(obj).map(key => ({ key, value: obj[key] }));
+        }
+        function coutTable(){
+          if(array.length>10){
+            let tbody = document.querySelector('tbody');
+            let tr = tbody.querySelectorAll('tr');
+            for(let k=0;k<array.length;k++){
+              if(k<10){
+                tr[k].className = '';
+              }else{
+                tr[k].className = 'none';
+              }
+            }
+            hod=0;
+            let div = document.getElementsByClassName('pagination');
+            let p = div[0].querySelector('p');
+            p.textContent = "Page 1:"+Math.ceil(array.length/10)+" rows - "+array.length;
+          }                          
+        }
+        function obrabotka(obj){
+            let str ="";
+            for(let key in obj){
+                if(typeof obj[key] == "object" ){
+                str+=key+" "+obrabotka(obj[key]);
+                }else{
+                str+=key+" ";
+                }
+            }
+            let temp =  str.split(' ');
+            return temp.splice(0,temp.length-1);
+        }
+        function tobody(a){
+            let tr = [];
+            let tbody = document.createElement('tbody');
+            for(let i=0;i<a.length;i++)tr.push(document.createElement('tr'));
+            for(let i=0;i<a.length;i++){
+                    for(let key in a[i]){
+                        let td = [];
+                        if(typeof a[i][key] == "object"){
+                            let temp = obrabotka(a[i][key]);
+                            for(let k=0;k<temp.length;k++){
+                              td.push(document.createElement('td'));
+                              td[k].textContent = a[i][key][temp[k]];
+                              tr[i].appendChild(td[k]);
+                            }
+                        }else{
+                            td.push(document.createElement('td'));
+                            td[0].textContent = a[i][key];
+                            tr[i].appendChild(td[0]);
+                        } 
+                    }
+                    tbody.appendChild(tr[i]);
+                }
+                return tbody;
+        }
+        document.addEventListener('DOMContentLoaded',function () {
+            async function getResponse(data){
+                let response = await fetch(data);
+                array = await response.json();
+                array_reserve = [...array];
+                name_headers=[];
+                let table = document.getElementsByClassName('dynamic-table');
+                table[0].innerHTML = '';
+                let thead = document.createElement('thead');
+                let trh = document.createElement('tr');
+                for(let key in array[0]){
+                  if(typeof array[0][key] != "object"){
+                    let th = document.createElement('th');
+                    let button = document.createElement('button');
+                    let p = document.createElement('p');
+                    let div = document.createElement('div');
+                    div.className = "filter_text_button";
+                    p.textContent = key;
+                    name_headers.push(key);
+                    button.className = "button_filter";
+                    button.id = key;
+                    button.textContent = '📶';
+                    div.appendChild(p);
+                    div.appendChild(button);
+                    th.appendChild(div);
+                    trh.appendChild(th);
+                  }else{
+                    let temp = obrabotka(array[0][key]);
+                    for(let i=0;i<temp.length;i++){
+                      let th = document.createElement('th');
+                      let button = document.createElement('button');
+                      let p = document.createElement('p');
+                      let div = document.createElement('div');
+                      div.className = "filter_text_button";
+                      p.textContent = temp[i];
+                      name_headers.push(temp[i]);
+                      button.className = "button_filter";
+                      button.id = temp[i];
+                      button.textContent = '📶';
+                      div.appendChild(p);
+                      div.appendChild(button);
+                      th.appendChild(div);
+                      trh.appendChild(th);
+                    }
+                  }
+                }
+                thead.appendChild(trh);
+                table[0].appendChild(thead);
+                table[0].appendChild(tobody(array));
+            }
+
+            document.getElementById('dataset-small').addEventListener('click',function(){
+                let lable = document.getElementById('dataset');
+                lable.value = small_data;
+            });
+
+            document.getElementById('dataset-big').addEventListener('click',function(){
+                let lable = document.getElementById('dataset');
+                lable.value = big_data;
+            });
+
+            document.getElementById('delete-dataset').addEventListener('click',function(){
+                let lable = document.getElementById('dataset');
+                lable.value = "";
+            });
+
+            document.getElementById('next-dataset').addEventListener('click',function(){
+              let value = document.getElementById('search').value;
+                if(hod+10<array.length && value==''){
+                  let tbody = document.querySelector('tbody');
+                  let tr = tbody.querySelectorAll('tr');
+                  for(let k=hod;k<hod+10 && k<array.length;k++){
+                    tr[k].className = 'none';
+                  }
+                  for(let k=hod+10;k<array.length && k<hod+20;k++){
+                    tr[k].className = '';
+                  }
+                  hod+=10;
+                  let div = document.getElementsByClassName('pagination');
+                  let p = div[0].querySelector('p');
+                  p.textContent = "Page "+(hod/10+1)+":"+Math.ceil(array.length/10)+" rows - "+array.length;
+                }
+              });
+
+            document.getElementById('back-dataset').addEventListener('click',function(){
+              let value = document.getElementById('search').value;
+              console.log(value.length," ",value);
+                if(hod-10>=0 && value==''){
+                  let tbody = document.querySelector('tbody');
+                  let tr = tbody.querySelectorAll('tr');
+                  for(let k=hod;k<hod+10 && k<array.length;k++){
+                    tr[k].className = 'none';
+                  }
+                  for(let k=hod-1;k>=0 && k>=hod-10;k--){
+                    tr[k].className = '';
+                  }
+                  hod-=10;
+                  let div = document.getElementsByClassName('pagination');
+                  let p = div[0].querySelector('p');
+                  p.textContent = "Page "+(hod/10+1)+":"+Math.ceil(array.length/10)+" rows - "+array.length;
+                }
+              });
+
+            document.getElementById('search').addEventListener('input',function(){
+              let value = document.getElementById('search').value.trim().split(/ +/);
+              if(array.length!=0 && value[0]!=''){
+                let div = document.getElementsByClassName('pagination');
+                  let p = div[0].querySelector('p');
+                  p.textContent = "Page "+1+":"+Math.ceil(array.length/10)+" rows - "+array.length;
+                let table = document.querySelector('table');
+                let tbody = document.querySelector('tbody');
+                let tr = tbody.querySelectorAll('tr');
+                for(let i=0;i<array.length;i++){
+                  let temp = [];
+                  for(let j=0;j<name_headers.length;j++){
+                    let count=0;
+                    for(let k=0;k<value.length;k++){
+                      if(tr[i].querySelectorAll('td')[j].textContent.includes(value[k])){
+                        count++;
+                      }
+                    }
+                    temp.push(count);
+                  }
+                  if(temp.reduce((accumulator, currentValue) => accumulator + currentValue, 0)){
+                    tr[i].className = '';
+                  }else{
+                    tr[i].className = 'none';
+                  }
+                }
+              }else{
+                if(value[0]=='' && array.length!=0){
+                  array=[...array_reserve];
+                  console.log("Yes");
+                  coutTable();
+                }
+              }
+            });
+
+            document.getElementById('load-dataset').addEventListener('click', function() {
+                let lable = document.getElementById('dataset');
+                if (!lable.value) {
+                    alert("Ошибка: не выбраны данные");
+                } else {
+                    getResponse(lable.value).then(() => {
+                        coutTable();
+                        var sortIndex = {};
+                        for (let key in name_headers) {
+                            sortIndex[name_headers[key]] = 0;
+                        }
+                        for (let key in name_headers) {
+
+                            document.getElementById(name_headers[key]).addEventListener('click', function() {
+                                document.getElementById('search').value = '';
+                                if (array.length > 1) {
+                                    let i = 0;
+                                    for (let key2 in name_headers) {
+                                        if (name_headers[key2] == name_headers[key]) break;
+                                        i++;
+                                    }
+                                    let table = document.getElementsByClassName('dynamic-table');
+                                    let tbody = document.querySelector('tbody');
+                                    let tr = tbody.querySelectorAll('tr');
+                                    if (sortIndex[name_headers[key]] == 3) {
+                                        sortIndex[name_headers[key]] = 1;
+                                    } else {
+                                        sortIndex[name_headers[key]]++;
+                                    }
+                                    function sortirovka (descanding){
+                                      for(let j=0;j<array.length-1;j++){
+                                            let max = tr[j].querySelectorAll('td')[i].textContent;
+                                            let maxi = j;
+                                              for(let k=j+1;k<array.length;k++){
+                                                let aValue = tr[k].querySelectorAll('td')[i].textContent;
+                                                if (!Number(aValue)) {
+                                                  if(descanding){
+                                                    if(aValue.localeCompare(max)>0){
+                                                        max=aValue;
+                                                        maxi=k;
+                                                    }
+                                                  }else{
+                                                    if(max.localeCompare(aValue)>0){
+                                                        max=aValue;
+                                                        maxi=k;
+                                                    }
+                                                  }
+                                                  } else {
+                                                      aValue = parseFloat(aValue);
+                                                      if(descanding){
+                                                        if(aValue < parseFloat(max)){
+                                                          max=aValue;
+                                                          maxi=k;
+                                                        }
+                                                      }else{
+                                                        if(aValue > parseFloat(max)){
+                                                          max=aValue;
+                                                          maxi=k;
+                                                        }
+                                                      }
+                                                  }
+                                              }
+                                              for(let m=0;m<name_headers.length;m++){
+                                                let temp = tr[j].querySelectorAll('td')[m].textContent;
+                                                tr[j].querySelectorAll('td')[m].textContent = tr[maxi].querySelectorAll('td')[m].textContent;
+                                                tr[maxi].querySelectorAll('td')[m].textContent = temp;
+                                              }
+                                            }
+                                    }
+                                    switch (sortIndex[name_headers[key]]) {
+                                        case 1:{
+                                            sortirovka(false);
+                                            coutTable();
+                                            break;
+                                        }
+                                        case 2:{
+                                            sortirovka(true);
+                                            coutTable();
+                                            break;
+                                        }
+                                        case 3:{
+                                            tbody.remove();
+                                            table[0].appendChild(tobody(array_reserve));
+                                            array=[...array_reserve];
+                                            coutTable();
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        });
+  </script>
+  <body>
+    <main>
+      <h1>Динамическая таблица</h1>
+      <div class="dataset">
+        <div class="dataset__predefined">
+          <button id="dataset-small">Малый набор</button>
+          <button id="dataset-big">Большой набор</button>
+        </div>
+        <div class="dataset__form">
+          <div class="dataset__input-group">
+            <label for="dataset">Набор данных:</label>
+            <input type="text" id="dataset" placeholder="URL набора данных" />
+          </div>
+          <div class="regular_buttons">
+            <button id="load-dataset">Загрузить</button>
+            <button id="delete-dataset">Очистить</button>
+          </div>
+        </div>
+      </div>
+      <div class="regular_buttons">
+        <button id="next-dataset">Вперед</button>
+        <button id="back-dataset">Назад</button>
+      </div>
+      <div class="navigation">
+        <div class="pagination">
+          <p>Page</p>
+        </div>
+        <input type="text" id="search" placeholder="Поиск" />
+      </div>
+      <div id="table-wrapper">
+        <table class="dynamic-table"></table>
+      </div>
+    </main>
+  </body>
+</html>
